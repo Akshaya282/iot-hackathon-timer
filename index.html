@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IoT Hackathon</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --green: #22c55e;
+  --orange: #f59e0b;
+  --red: #ef4444;
+  --bg: #07080f;
+  --panel: #12141f;
+  --border: rgba(255,255,255,0.07);
+  --accent: #6366f1;
+  --accent2: #818cf8;
+  --text: #f1f1f3;
+  --muted: #52526a;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:100%; min-height:100vh; overflow-x:hidden; }
+body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; }
+
+#bgCanvas { position:fixed; inset:0; width:100%; height:100%; z-index:0; }
+
+.container {
+  position:relative; z-index:2;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  min-height:100vh; padding:20px;
+}
+
+/* ── TAGLINE ── */
+.tagline {
+  font-size:clamp(10px,1.5vw,13px); font-weight:700;
+  letter-spacing:6px; color:var(--accent2); text-transform:uppercase;
+  margin-bottom:10px; opacity:0.8;
+}
+
+/* ── INTERACTIVE TITLE ── */
+.main-title {
+  cursor:default; user-select:none;
+  font-size:clamp(44px,9vw,108px); font-weight:900;
+  line-height:1; letter-spacing:-2px; text-transform:uppercase;
+  margin-bottom:4px;
+  display:flex; flex-wrap:wrap; justify-content:center; gap:0 16px;
+}
+.title-word { display:inline-flex; }
+.title-char {
+  display:inline-block;
+  background:linear-gradient(135deg,#e0e7ff,#a5b4fc,#6366f1);
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+  transition:transform 0.15s ease, filter 0.15s ease;
+  cursor:crosshair; position:relative;
+}
+.title-char:hover {
+  transform:translateY(-10px) scale(1.2) rotate(-4deg);
+  filter:drop-shadow(0 0 18px #818cf8) drop-shadow(0 0 36px #6366f1);
+}
+.title-char.pop {
+  animation:charPop 0.5s cubic-bezier(0.175,0.885,0.32,1.275) forwards;
+}
+@keyframes charPop {
+  0%   { transform:scale(1) rotate(0deg); }
+  30%  { transform:scale(1.5) rotate(-8deg); filter:drop-shadow(0 0 28px #818cf8); }
+  60%  { transform:scale(0.85) rotate(5deg); }
+  80%  { transform:scale(1.1) rotate(-2deg); }
+  100% { transform:scale(1) rotate(0deg); }
+}
+.title-char.wave { animation:charWave 0.6s ease forwards; }
+@keyframes charWave {
+  0%,100% { transform:translateY(0); }
+  25% { transform:translateY(-14px); }
+  75% { transform:translateY(-6px); }
+}
+
+.title-underline {
+  width:0; height:2px;
+  background:linear-gradient(90deg,transparent,var(--accent),var(--accent2),transparent);
+  margin:8px auto 14px; border-radius:2px;
+  animation:expandLine 2s ease 0.5s forwards;
+}
+@keyframes expandLine { to { width:80%; } }
+
+/* ── PHASE BADGE ── */
+.phase-badge {
+  display:inline-flex; align-items:center; gap:8px;
+  padding:5px 18px; border-radius:6px;
+  font-size:clamp(11px,1.4vw,13px); font-weight:700;
+  letter-spacing:1.5px; text-transform:uppercase;
+  border:1px solid; margin-bottom:10px; transition:all 1s ease;
+}
+.phase-green  { color:var(--green);  border-color:rgba(34,197,94,0.3);  background:rgba(34,197,94,0.06); }
+.phase-orange { color:var(--orange); border-color:rgba(245,158,11,0.3); background:rgba(245,158,11,0.06); }
+.phase-red    { color:var(--red);    border-color:rgba(239,68,68,0.3);  background:rgba(239,68,68,0.06); }
+
+/* ── TIMER ── */
+.timer-section { text-align:center; margin:4px 0 10px; }
+.timer-display {
+  font-family:'Space Mono',monospace;
+  font-size:clamp(72px,18vw,200px); font-weight:700;
+  line-height:1; letter-spacing:-4px;
+  transition:color 1.2s ease, text-shadow 1.2s ease;
+}
+.timer-display.green  { color:#4ade80; text-shadow:0 0 50px rgba(74,222,128,0.35),0 0 100px rgba(74,222,128,0.12); }
+.timer-display.orange { color:#fbbf24; text-shadow:0 0 50px rgba(251,191,36,0.35),0 0 100px rgba(251,191,36,0.12); }
+.timer-display.red    { color:#f87171; text-shadow:0 0 50px rgba(248,113,113,0.4),0 0 100px rgba(248,113,113,0.15); animation:urgentPulse 1.5s ease-in-out infinite; }
+@keyframes urgentPulse { 0%,100%{transform:scale(1);} 50%{transform:scale(1.013);} }
+.timer-label { font-size:clamp(9px,1.2vw,12px); font-weight:700; letter-spacing:6px; color:var(--muted); text-transform:uppercase; margin-top:4px; }
+
+/* ── PROGRESS ── */
+.progress-wrap { width:88%; max-width:860px; margin:0 auto 14px; }
+.progress-track { display:flex; gap:3px; height:5px; border-radius:99px; }
+.seg { flex:1; background:rgba(255,255,255,0.05); border-radius:99px; overflow:hidden; }
+.seg-fill { height:100%; width:0%; transition:width 1s linear; border-radius:99px; }
+.seg-1 .seg-fill { background:var(--green); }
+.seg-2 .seg-fill { background:var(--orange); }
+.seg-3 .seg-fill { background:var(--red); }
+.seg-labels { display:flex; justify-content:space-between; margin-top:5px; }
+.seg-label { font-size:10px; font-weight:700; letter-spacing:0.5px; opacity:0.4; }
+.seg-label.green  { color:var(--green); }
+.seg-label.orange { color:var(--orange); }
+.seg-label.red    { color:var(--red); }
+
+/* ── INFO CARDS ── */
+.info-row { display:flex; gap:10px; width:88%; max-width:860px; margin:0 auto 14px; flex-wrap:wrap; justify-content:center; }
+.info-card {
+  flex:1; min-width:175px;
+  background:rgba(18,20,31,0.82); backdrop-filter:blur(14px);
+  border:1px solid var(--border); border-radius:10px;
+  padding:14px 18px; text-align:center; position:relative; overflow:hidden;
+}
+.info-card::after { content:''; position:absolute; top:0; left:0; right:0; height:1px; background:linear-gradient(90deg,transparent,var(--accent2),transparent); opacity:0.4; }
+.card-icon { font-size:20px; margin-bottom:3px; }
+.card-label { font-size:9px; font-weight:700; letter-spacing:2px; color:var(--muted); text-transform:uppercase; margin-bottom:3px; }
+.card-val { font-family:'Space Mono',monospace; font-size:15px; font-weight:700; color:var(--text); }
+
+/* ── QUOTE ── */
+.quote-wrap {
+  width:88%; max-width:860px; margin:0 auto;
+  background:rgba(18,20,31,0.8); backdrop-filter:blur(10px);
+  border:1px solid var(--border); border-left:3px solid var(--accent);
+  border-radius:0 10px 10px 0; padding:14px 20px;
+  display:flex; align-items:center; gap:14px; min-height:62px;
+}
+.quote-mark { font-size:32px; color:rgba(99,102,241,0.2); font-family:Georgia,serif; flex-shrink:0; line-height:1; }
+.quote-text { font-size:clamp(13px,1.8vw,17px); font-weight:500; font-style:italic; color:rgba(241,241,243,0.7); line-height:1.5; transition:all 0.5s ease; }
+
+/* ── THANK YOU ── */
+.ty-page { display:none; flex-direction:column; align-items:center; justify-content:center; position:fixed; inset:0; z-index:100; background:var(--bg); text-align:center; padding:40px; }
+.ty-trophy { font-size:64px; animation:trophy 3s ease-in-out infinite; margin-bottom:10px; }
+@keyframes trophy { 0%,100%{transform:scale(1) rotate(-3deg);} 50%{transform:scale(1.1) rotate(3deg);} }
+.ty-title { font-family:'Inter',sans-serif; font-size:clamp(44px,11vw,120px); font-weight:900; letter-spacing:-3px; background:linear-gradient(135deg,#e0e7ff,#a5b4fc,#6366f1); background-size:300% 300%; -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; animation:shimmer 2s ease infinite; }
+@keyframes shimmer { 0%,100%{background-position:0% 50%;} 50%{background-position:100% 50%;} }
+.ty-sub { font-size:clamp(16px,2.8vw,26px); font-weight:700; color:rgba(241,241,243,0.5); margin:12px 0 8px; }
+.ty-msg { font-size:clamp(13px,1.8vw,17px); color:rgba(241,241,243,0.38); max-width:520px; line-height:1.7; margin:0 auto 18px; }
+.ty-tag { font-size:clamp(10px,1.4vw,13px); font-weight:700; letter-spacing:3px; color:var(--accent2); text-transform:uppercase; opacity:0.6; }
+
+/* ── OVERLAYS ── */
+.alert-flash { position:fixed; inset:0; background:rgba(99,102,241,0.05); pointer-events:none; z-index:50; opacity:0; transition:opacity 0.3s; }
+.alert-flash.show { opacity:1; }
+
+.music-toast {
+  position:fixed; bottom:24px; right:24px;
+  background:rgba(18,20,31,0.95); backdrop-filter:blur(10px);
+  border:1px solid rgba(99,102,241,0.3); border-radius:10px;
+  padding:11px 16px; display:flex; align-items:center; gap:10px;
+  z-index:200; transform:translateX(240px);
+  transition:transform 0.5s cubic-bezier(0.175,0.885,0.32,1.275);
+  box-shadow:0 8px 28px rgba(0,0,0,0.5);
+}
+.music-toast.show { transform:translateX(0); }
+.music-icon { font-size:20px; animation:bounce 0.6s ease infinite alternate; }
+@keyframes bounce { to{transform:translateY(-3px);} }
+.music-text { font-weight:700; color:var(--accent2); font-size:12px; }
+
+.overlay { position:fixed; inset:0; background:rgba(0,0,0,0.65); backdrop-filter:blur(3px); z-index:299; display:none; }
+.moti-popup {
+  position:fixed; top:50%; left:50%;
+  transform:translate(-50%,-50%) scale(0);
+  background:var(--panel); border:1px solid rgba(99,102,241,0.3);
+  border-radius:14px; padding:32px 36px; text-align:center;
+  z-index:300; max-width:460px; width:90%;
+  box-shadow:0 24px 80px rgba(0,0,0,0.7);
+  transition:transform 0.4s cubic-bezier(0.175,0.885,0.32,1.275);
+}
+.moti-popup.show { transform:translate(-50%,-50%) scale(1); }
+.moti-popup h3 { font-size:10px; font-weight:700; letter-spacing:3px; color:var(--accent2); text-transform:uppercase; margin-bottom:14px; }
+.moti-popup p { font-size:17px; font-weight:600; color:var(--text); line-height:1.6; }
+.moti-popup button { margin-top:20px; padding:8px 24px; background:rgba(99,102,241,0.1); border:1px solid rgba(99,102,241,0.35); color:var(--accent2); font-family:'Inter',sans-serif; font-weight:700; font-size:11px; letter-spacing:2px; text-transform:uppercase; border-radius:8px; cursor:pointer; transition:background 0.2s; }
+.moti-popup button:hover { background:rgba(99,102,241,0.25); }
+
+@media(max-width:600px){ .info-card{min-width:140px;padding:10px;} }
+</style>
+</head>
+<body>
+
+<canvas id="bgCanvas"></canvas>
+
+<div class="container">
+  <div style="text-align:center; margin-top: 60px;">
+    <div class="tagline">⚡ Innovation · Build · Connect ⚡</div>
+    <div class="main-title" id="mainTitle"></div>
+    <div class="title-underline"></div>
+  </div>
+
+  <div class="timer-section" style="margin-top: 40px;">
+    <div class="timer-display green" id="timerDisplay">06:00:00</div>
+    <div class="timer-label">⏱ Countdown — Running Live</div>
+  </div>
+
+
+</div>
+
+<!-- THANK YOU -->
+<div class="ty-page" id="tyPage">
+  <div class="ty-trophy">🏆</div>
+  <div class="ty-title">WELL DONE!</div>
+  <div class="ty-sub">6 Hours of Pure Innovation</div>
+  <div class="ty-msg">Every sensor you wired, every line of code you wrote — it all counts.<br><strong>You are the future of IoT.</strong></div>
+  <div style="font-size:clamp(22px,4vw,36px);margin:10px 0;">🎉 Thank You, Hackers! 🎉</div>
+  <div class="ty-tag">IoT Hackathon — See you at the next edition!</div>
+</div>
+
+<div class="alert-flash" id="alertFlash"></div>
+<div class="overlay" id="overlay"></div>
+<div class="moti-popup" id="motiPopup">
+  <h3>💡 Motivation Boost</h3>
+  <p id="motiText">Keep pushing — you're doing amazing!</p>
+  <button onclick="closePopup()">Continue Hacking</button>
+</div>
+<div class="music-toast" id="musicToast">
+  <div class="music-icon">🎵</div>
+  <div class="music-text" id="musicText">Energy boost — stay focused!</div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+//  ELECTRONICS CANVAS BACKGROUND
+// ═══════════════════════════════════════════════════
+const canvas = document.getElementById('bgCanvas');
+const ctx = canvas.getContext('2d');
+
+function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+resize();
+window.addEventListener('resize', () => { resize(); buildNodes(); });
+
+const LED_COLORS = ['#4ade80','#818cf8','#f87171','#fbbf24','#38bdf8','#e879f9'];
+const ACCENT = '#6366f1';
+
+// ─── PCB Nodes ─────────────────────────────────────
+const nodes = [];
+const GRID = 72;
+function buildNodes() {
+  nodes.length = 0;
+  const cols = Math.floor(canvas.width / GRID) + 2;
+  const rows = Math.floor(canvas.height / GRID) + 2;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      nodes.push({
+        x: c * GRID + (Math.random()-0.5)*18,
+        y: r * GRID + (Math.random()-0.5)*18,
+        active: Math.random() > 0.7,
+        pulse: Math.random() * Math.PI * 2,
+      });
+    }
+  }
+}
+buildNodes();
+
+// ─── Signal Traces ─────────────────────────────────
+class Trace {
+  constructor() { this.reset(); }
+  reset() {
+    const horiz = Math.random() > 0.45;
+    if (horiz) {
+      this.y1 = Math.random() * canvas.height;
+      this.x1 = Math.random() < 0.5 ? -80 : canvas.width + 80;
+      this.dx = this.x1 < 0 ? 1 : -1;
+      this.dy = 0;
+    } else {
+      this.x1 = Math.random() * canvas.width;
+      this.y1 = Math.random() < 0.5 ? -80 : canvas.height + 80;
+      this.dx = 0;
+      this.dy = this.y1 < 0 ? 1 : -1;
+    }
+    this.len = 70 + Math.random() * 180;
+    this.speed = 1.2 + Math.random() * 3;
+    this.progress = 0;
+    this.color = LED_COLORS[Math.floor(Math.random() * LED_COLORS.length)];
+    this.w = 1 + Math.random() * 1.2;
+    this.dead = false;
+  }
+  update() {
+    this.progress += this.speed;
+    if (this.progress > this.len + canvas.width + canvas.height) this.dead = true;
+  }
+  draw() {
+    const x2 = this.x1 + this.dx * this.progress;
+    const y2 = this.y1 + this.dy * this.progress;
+    const x1t = this.x1 + this.dx * Math.max(0, this.progress - this.len);
+    const y1t = this.y1 + this.dy * Math.max(0, this.progress - this.len);
+    ctx.save();
+    ctx.globalAlpha = 0.3;
+    ctx.strokeStyle = this.color;
+    ctx.lineWidth = this.w;
+    ctx.shadowColor = this.color;
+    ctx.shadowBlur = 5;
+    ctx.beginPath(); ctx.moveTo(x1t, y1t); ctx.lineTo(x2, y2); ctx.stroke();
+    ctx.globalAlpha = 0.95;
+    ctx.shadowBlur = 16;
+    ctx.beginPath(); ctx.arc(x2, y2, this.w * 2, 0, Math.PI*2);
+    ctx.fillStyle = this.color; ctx.fill();
+    ctx.restore();
+  }
+}
+
+// ─── Electronics Components ────────────────────────
+class EComp {
+  constructor(init=false) { this.spawn(init); }
+  spawn(init=false) {
+    this.x = Math.random() * canvas.width;
+    this.y = init ? Math.random() * canvas.height : canvas.height + 100;
+    this.vx = (Math.random()-0.5) * 0.22;
+    this.vy = -(0.12 + Math.random() * 0.28);
+    this.rot = Math.random() * Math.PI * 2;
+    this.rotS = (Math.random()-0.5) * 0.004;
+    this.s = 26 + Math.random() * 38;
+    this.op = 0;
+    this.glow = Math.random();
+    this.glowD = 1;
+    this.color = LED_COLORS[Math.floor(Math.random() * LED_COLORS.length)];
+    this.type = ['resistor','capacitor','chip','led','transistor','wifi','cpu','sensor','inductor','diode'][Math.floor(Math.random()*10)];
+  }
+  update() {
+    this.x += this.vx; this.y += this.vy; this.rot += this.rotS;
+    this.glow += 0.018 * this.glowD;
+    if (this.glow > 1 || this.glow < 0) this.glowD *= -1;
+    this.op = Math.min(0.65, this.op + 0.007);
+    if (this.y < -120 || this.x < -120 || this.x > canvas.width + 120) this.spawn();
+  }
+  draw() {
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    ctx.rotate(this.rot);
+    ctx.globalAlpha = this.op;
+    const s = this.s;
+    const g = this.glow;
+
+    if (this.type === 'resistor') {
+      ctx.strokeStyle = 'rgba(129,140,248,0.6)'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(-s*.7,0); ctx.lineTo(-s*.35,0); ctx.stroke();
+      ctx.strokeRect(-s*.35,-s*.22,s*.7,s*.44);
+      [['rgba(248,113,113,0.9)',-s*.15],['rgba(74,222,128,0.9)',0],['rgba(251,191,36,0.9)',s*.15]].forEach(([c,x])=>{
+        ctx.strokeStyle=c; ctx.beginPath(); ctx.moveTo(x,-s*.22); ctx.lineTo(x,s*.22); ctx.stroke();
+      });
+      ctx.strokeStyle='rgba(129,140,248,0.6)';
+      ctx.beginPath(); ctx.moveTo(s*.35,0); ctx.lineTo(s*.7,0); ctx.stroke();
+
+    } else if (this.type === 'capacitor') {
+      ctx.strokeStyle = 'rgba(129,140,248,0.6)'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(-s*.5,0); ctx.lineTo(-s*.06,0); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-s*.06,-s*.38); ctx.lineTo(-s*.06,s*.38); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(s*.06,-s*.38); ctx.lineTo(s*.06,s*.38); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(s*.06,0); ctx.lineTo(s*.5,0); ctx.stroke();
+
+    } else if (this.type === 'chip') {
+      ctx.fillStyle='rgba(10,10,24,0.95)'; ctx.strokeStyle='rgba(129,140,248,0.55)'; ctx.lineWidth=1.5;
+      const cs=s*1.2;
+      ctx.fillRect(-cs*.5,-cs*.42,cs,cs*.84); ctx.strokeRect(-cs*.5,-cs*.42,cs,cs*.84);
+      for(let i=0;i<4;i++){
+        const py=-cs*.27+i*(cs*.54/3);
+        ctx.beginPath(); ctx.moveTo(-cs*.5,py); ctx.lineTo(-cs*.68,py); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cs*.5,py); ctx.lineTo(cs*.68,py); ctx.stroke();
+      }
+      ctx.fillStyle='rgba(129,140,248,0.6)'; ctx.font=`bold ${cs*.16}px Space Mono`; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText('IC',0,0);
+
+    } else if (this.type === 'led') {
+      ctx.shadowColor=this.color; ctx.shadowBlur=10+g*16;
+      ctx.fillStyle=this.color.replace(')',`,${0.45+g*.45})`).replace('rgb','rgba');
+      ctx.strokeStyle=this.color; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.moveTo(-s*.42,-s*.38); ctx.lineTo(s*.42,0); ctx.lineTo(-s*.42,s*.38); ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(s*.42,-s*.38); ctx.lineTo(s*.42,s*.38); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-s*.68,0); ctx.lineTo(-s*.42,0); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(s*.42,0); ctx.lineTo(s*.68,0); ctx.stroke();
+      ctx.shadowBlur=0;
+
+    } else if (this.type === 'transistor') {
+      ctx.strokeStyle='rgba(129,140,248,0.55)'; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.moveTo(-s*.55,0); ctx.lineTo(-s*.12,0); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-s*.12,-s*.42); ctx.lineTo(-s*.12,s*.42); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-s*.12,-s*.26); ctx.lineTo(s*.55,-s*.55); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-s*.12,s*.26); ctx.lineTo(s*.55,s*.55); ctx.stroke();
+      ctx.strokeStyle='rgba(99,102,241,0.22)';
+      ctx.beginPath(); ctx.arc(0,0,s*.6,0,Math.PI*2); ctx.stroke();
+
+    } else if (this.type === 'wifi') {
+      ctx.strokeStyle=`rgba(56,189,248,${0.4+g*.4})`; ctx.lineWidth=1.8; ctx.lineCap='round';
+      [s*.62,s*.42,s*.22].forEach(r=>{
+        ctx.beginPath(); ctx.arc(0,s*.12,r,-Math.PI*.8,-Math.PI*.2); ctx.stroke();
+      });
+      ctx.shadowColor='#38bdf8'; ctx.shadowBlur=8+g*10;
+      ctx.fillStyle=`rgba(56,189,248,${0.65+g*.35})`;
+      ctx.beginPath(); ctx.arc(0,s*.16,s*.07,0,Math.PI*2); ctx.fill(); ctx.shadowBlur=0;
+
+    } else if (this.type === 'cpu') {
+      const cs=s*1.15;
+      ctx.fillStyle='rgba(8,8,22,0.96)'; ctx.strokeStyle='rgba(129,140,248,0.5)'; ctx.lineWidth=1.4;
+      ctx.fillRect(-cs*.42,-cs*.42,cs*.84,cs*.84); ctx.strokeRect(-cs*.42,-cs*.42,cs*.84,cs*.84);
+      for(let i=0;i<5;i++){
+        const t=-cs*.3+i*(cs*.6/4);
+        ctx.beginPath(); ctx.moveTo(t,-cs*.42); ctx.lineTo(t,-cs*.56); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(t,cs*.42); ctx.lineTo(t,cs*.56); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(-cs*.42,t); ctx.lineTo(-cs*.56,t); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cs*.42,t); ctx.lineTo(cs*.56,t); ctx.stroke();
+      }
+      ctx.fillStyle=`rgba(99,102,241,${0.08+g*.14})`;
+      ctx.fillRect(-cs*.3,-cs*.3,cs*.6,cs*.6);
+      ctx.strokeStyle='rgba(129,140,248,0.45)'; ctx.strokeRect(-cs*.3,-cs*.3,cs*.6,cs*.6);
+      ctx.fillStyle='rgba(129,140,248,0.65)'; ctx.font=`bold ${cs*.16}px Space Mono`;
+      ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('CPU',0,0);
+
+    } else if (this.type === 'sensor') {
+      ctx.strokeStyle='rgba(129,140,248,0.5)'; ctx.lineWidth=1.4;
+      ctx.fillStyle=`rgba(74,222,128,${0.04+g*.1})`; ctx.fillRect(-s*.42,-s*.42,s*.84,s*.84);
+      ctx.strokeRect(-s*.42,-s*.42,s*.84,s*.84);
+      ctx.shadowColor='#4ade80'; ctx.shadowBlur=6+g*10;
+      ctx.fillStyle=`rgba(74,222,128,${0.55+g*.45})`;
+      ctx.beginPath(); ctx.arc(0,-s*.12,s*.15,0,Math.PI*2); ctx.fill(); ctx.shadowBlur=0;
+      for(let i=0;i<3;i++){
+        ctx.fillStyle=`rgba(99,102,241,${0.25+i*.12})`;
+        ctx.fillRect(-s*.22,s*.08+i*s*.12,s*.44,s*.07);
+      }
+
+    } else if (this.type === 'inductor') {
+      ctx.strokeStyle='rgba(129,140,248,0.55)'; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.moveTo(-s*.7,0); ctx.lineTo(-s*.45,0); ctx.stroke();
+      for(let i=0;i<4;i++){
+        ctx.beginPath(); ctx.arc(-s*.32+i*s*.2,0,s*.14,Math.PI,0); ctx.stroke();
+      }
+      ctx.beginPath(); ctx.moveTo(s*.45,0); ctx.lineTo(s*.7,0); ctx.stroke();
+
+    } else { // diode
+      ctx.strokeStyle='rgba(129,140,248,0.55)'; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.moveTo(-s*.6,0); ctx.lineTo(-s*.28,0); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-s*.28,-s*.32); ctx.lineTo(s*.28,0); ctx.lineTo(-s*.28,s*.32); ctx.closePath();
+      ctx.fillStyle='rgba(129,140,248,0.12)'; ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(s*.28,-s*.32); ctx.lineTo(s*.28,s*.32); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(s*.28,0); ctx.lineTo(s*.6,0); ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+
+// Init
+const traces = Array.from({length:16},()=>new Trace());
+const comps  = Array.from({length:24},()=>new EComp(true));
+
+let frame=0;
+function drawBg() {
+  frame++;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle='#07080f'; ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // PCB grid
+  ctx.save();
+  ctx.strokeStyle='#6366f1'; ctx.lineWidth=1;
+  const cw=Math.floor(canvas.width/GRID)+2;
+  for(let x=0;x<canvas.width+GRID;x+=GRID){ ctx.globalAlpha=0.055; ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); ctx.stroke(); }
+  for(let y=0;y<canvas.height+GRID;y+=GRID){ ctx.globalAlpha=0.055; ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(canvas.width,y); ctx.stroke(); }
+
+  // Nodes + connections
+  nodes.forEach((n,i)=>{
+    n.pulse+=0.018;
+    const right=nodes[i+1], down=nodes[i+cw];
+    if(right && Math.abs(right.y-n.y)<GRID*1.5){ ctx.globalAlpha=0.07+Math.sin(n.pulse)*0.025; ctx.strokeStyle='#6366f1'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(n.x,n.y); ctx.lineTo(right.x,right.y); ctx.stroke(); }
+    if(down){ ctx.globalAlpha=0.07+Math.sin(n.pulse+1)*0.025; ctx.strokeStyle='#6366f1'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(n.x,n.y); ctx.lineTo(down.x,down.y); ctx.stroke(); }
+    if(n.active){
+      const gl=0.4+0.6*Math.abs(Math.sin(n.pulse));
+      ctx.globalAlpha=gl*0.65; ctx.fillStyle='#818cf8'; ctx.shadowColor='#818cf8'; ctx.shadowBlur=8;
+      ctx.beginPath(); ctx.arc(n.x,n.y,2.5,0,Math.PI*2); ctx.fill(); ctx.shadowBlur=0;
+    } else { ctx.globalAlpha=0.12; ctx.fillStyle='#6366f1'; ctx.beginPath(); ctx.arc(n.x,n.y,1.5,0,Math.PI*2); ctx.fill(); }
+  });
+  ctx.restore();
+
+  // Traces
+  traces.forEach((t,i)=>{ t.update(); t.draw(); if(t.dead) traces[i]=new Trace(); });
+
+  // Components
+  comps.forEach(c=>{ c.update(); c.draw(); });
+
+  requestAnimationFrame(drawBg);
+}
+drawBg();
+
+
+// ═══════════════════════════════════════════════════
+//  INTERACTIVE TITLE
+// ═══════════════════════════════════════════════════
+function buildTitle() {
+  const el = document.getElementById('mainTitle');
+  const words = ['IoT','HACKATHON'];
+  el.innerHTML='';
+  words.forEach((word,wi)=>{
+    const wEl=document.createElement('span');
+    wEl.className='title-word';
+    [...word].forEach(ch=>{
+      const span=document.createElement('span');
+      span.className='title-char';
+      span.textContent=ch;
+
+      // Hover ripple
+      span.addEventListener('mouseenter',()=>{
+        triggerPop(span);
+        const chars=[...el.querySelectorAll('.title-char')];
+        const idx=chars.indexOf(span);
+        [1,-1,2,-2,3].forEach((off,d)=>{
+          const nb=chars[idx+off];
+          if(nb) setTimeout(()=>triggerWave(nb),(d+1)*55);
+        });
+      });
+
+      // Click — full wave
+      span.addEventListener('click',()=>{
+        const all=[...el.querySelectorAll('.title-char')];
+        all.forEach((c,i)=>setTimeout(()=>triggerPop(c),i*38));
+      });
+
+      wEl.appendChild(span);
+    });
+    el.appendChild(wEl);
+  });
+}
+
+function triggerPop(el) {
+  el.classList.remove('pop','wave'); void el.offsetWidth;
+  el.classList.add('pop');
+  el.addEventListener('animationend',()=>el.classList.remove('pop'),{once:true});
+}
+function triggerWave(el) {
+  el.classList.remove('pop','wave'); void el.offsetWidth;
+  el.classList.add('wave');
+  el.addEventListener('animationend',()=>el.classList.remove('wave'),{once:true});
+}
+buildTitle();
+
+
+// ═══════════════════════════════════════════════════
+//  TIMER
+// ═══════════════════════════════════════════════════
+const TOTAL=6*3600;
+let remaining=TOTAL, elapsed=0;
+const halfHoursDone=new Set();
+
+const quotes=[
+  "The best way to predict the future is to build it. Start strong, innovators!",
+  "In the middle of difficulty lies opportunity. Embrace the challenge!",
+  "Every great device started as a crazy idea. Keep building!",
+  "Failure is just data. Analyze, adapt, and accelerate!",
+  "Your prototype doesn't have to be perfect — it has to be ALIVE.",
+  "Real hackers don't stop. They iterate. Keep going!",
+  "Innovation is seeing what everybody has seen and thinking what nobody has thought.",
+  "Think sensors, think data, think IMPACT!",
+  "The finish line is in sight. Give it your EVERYTHING!",
+  "Hardware + Software + Your Brilliance = Victory!",
+  "Debug with patience, build with passion!",
+  "Every great invention started exactly where you are right now!",
+];
+
+const musicMessages=[
+  "🎵 Power track loading — channel your inner hacker!",
+  "🎶 Mid-session energy! Turn up the focus!",
+  "🎵 Rhythm boost — let the music drive your code!",
+  "🎶 Half-hour checkpoint — recharge and hack on!",
+  "🎵 Final stretch — this is YOUR moment!",
+  "🎶 Last push soundtrack — leave it ALL on the field!",
+  "🎵 Champion mode activated. FINISH. IT.",
+  "🎶 Victory music loading... almost there!",
+];
+
+const motivationalQuotes=[
+  "Every bug you fix makes your solution stronger. Keep hacking!",
+  "Halfway there! Your creativity is the key to winning!",
+  "Real innovation happens under pressure. You've got this!",
+  "Your IoT solution could change lives. Code with purpose!",
+  "The best teams adapt and overcome. Stay sharp!",
+  "Think sensors, think data, think IMPACT!",
+  "Final hours — this is where legends are made!",
+  "Every great invention started exactly where you are right now!",
+];
+
+function fmt(s){ const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=s%60; return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`; }
+
+function updateUI(){
+  document.getElementById('timerDisplay').textContent=fmt(remaining);
+  const timerEl=document.getElementById('timerDisplay');
+  const eH=elapsed/3600;
+  if(eH<2){ timerEl.className='timer-display green'; }
+  else if(eH<4){ timerEl.className='timer-display orange'; }
+  else { timerEl.className='timer-display red'; }
+}
+
+let mIdx=0,moIdx=0,popOpen=false;
+
+function showMusic(m){ const t=document.getElementById('musicToast'); document.getElementById('musicText').textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),5000); }
+function showPopup(){ if(popOpen)return; popOpen=true; document.getElementById('motiText').textContent=motivationalQuotes[moIdx++%motivationalQuotes.length]; document.getElementById('overlay').style.display='block'; document.getElementById('motiPopup').classList.add('show'); setTimeout(()=>{if(popOpen)closePopup();},12000); }
+function closePopup(){ popOpen=false; document.getElementById('motiPopup').classList.remove('show'); document.getElementById('overlay').style.display='none'; }
+
+function spawnConfetti(){
+  const cols=['#6366f1','#818cf8','#a5b4fc','#22c55e','#f59e0b','#e0e7ff'];
+  for(let i=0;i<80;i++){
+    const d=document.createElement('div');
+    d.style.cssText=`position:fixed;width:${4+Math.random()*8}px;height:${4+Math.random()*8}px;background:${cols[Math.floor(Math.random()*cols.length)]};left:${Math.random()*100}vw;top:-20px;border-radius:${Math.random()>.5?'50%':'2px'};animation:cfall ${2+Math.random()*3}s ease ${Math.random()*3}s forwards;z-index:199;`;
+    document.body.appendChild(d);
+  }
+  if(!document.getElementById('cst')){ const s=document.createElement('style'); s.id='cst'; s.textContent='@keyframes cfall{to{transform:translateY(110vh) rotate(720deg);opacity:0;}}'; document.head.appendChild(s); }
+}
+
+function tick(){
+  if(remaining<=0){
+    remaining=0; updateUI();
+    document.getElementById('tyPage').style.display='flex';
+    spawnConfetti(); let cc=0; const ci=setInterval(()=>{spawnConfetti();if(++cc>5)clearInterval(ci);},2000);
+    return;
+  }
+  remaining--; elapsed++;
+  updateUI();
+  const hhIdx=Math.floor(elapsed/1800);
+  if(elapsed%1800===0 && !halfHoursDone.has(hhIdx)){
+    halfHoursDone.add(hhIdx);
+    showMusic(musicMessages[mIdx++%musicMessages.length]);
+    if(hhIdx%2===1) setTimeout(showPopup,6000);
+    const fl=document.getElementById('alertFlash'); fl.classList.add('show'); setTimeout(()=>fl.classList.remove('show'),800);
+  }
+  setTimeout(tick,1000);
+}
+tick();
+</script>
+</body>
+</html>
